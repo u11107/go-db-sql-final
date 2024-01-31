@@ -22,13 +22,6 @@ var (
 
 var store ParcelStore
 
-func assertParcelsEqual(t *testing.T, expected, actual Parcel) {
-	assert.Equal(t, expected.Client, actual.Client, "Client values do not match")
-	assert.Equal(t, expected.Status, actual.Status, "Status values do not match")
-	assert.Equal(t, expected.Address, actual.Address, "Address values do not match")
-	assert.Equal(t, expected.CreatedAt, actual.CreatedAt, "CreatedAt values do not match")
-}
-
 func TestMain(m *testing.M) {
 	db, err := sql.Open("sqlite", "tracker.db")
 	if err != nil {
@@ -62,11 +55,16 @@ func TestAddGetDelete(t *testing.T) {
 	require.NoError(t, err, "add error")
 	require.NotEqual(t, number, 0, "expected not 0 id")
 
+	// Установим значение Number для parcel так, чтобы оно соответствовало возвращенному значению
+	parcel.Number = number
+
 	// get
 	// получите только что добавленную посылку, убедитесь в отсутствии ошибки
 	fromDb, err := store.Get(number)
 	require.NoError(t, err, "get error ")
-	assertParcelsEqual(t, parcel, fromDb)
+
+	// Сравниваем структуры, включая поле Number
+	require.Equal(t, parcel, fromDb, "expected %+v, got %+v", parcel, fromDb)
 
 	// delete
 	// удалите добавленную посылку, убедитесь в отсутствии ошибки
@@ -162,12 +160,14 @@ func TestGetByClient(t *testing.T) {
 	require.Equal(t, len(parcels), len(storedParcels), "expected result length %d got %d", len(parcels), len(storedParcels))
 
 	// check
-	for _, parcel := range storedParcels {
+	for i, parcel := range storedParcels {
 		// в parcelMap лежат добавленные посылки, ключ - идентификатор посылки, значение - сама посылка
 		// убедитесь, что все посылки из storedParcels есть в parcelMap
 		// убедитесь, что значения полей полученных посылок заполнены верно
-		p, ok := parcelMap[parcel.Number]
-		assert.True(t, ok, "parcel not found by number %d", parcel.Number)
-		assertParcelsEqual(t, p, parcel)
+
+		expectedParcel := parcels[i]
+		expectedParcel.Number = parcel.Number // Устанавливаем значение Number
+
+		require.Equal(t, expectedParcel, parcel, "expected %+v, got %+v", expectedParcel, parcel)
 	}
 }
